@@ -249,7 +249,7 @@ $(function() {
 		.css("WebkitTransform", "scale("+ [scale, scale].join(",") +")")
 		.css("transform", "scale("+ [scale, scale].join(",") +")");
 	}, funFall = function() {
-		var start = 0, during = 100;
+		var start = 0, during = 400;
 		var _run = function() {
 			start++;
 			var top = Tween.Bounce.easeOut(start, objBall.top, 500 - objBall.top, during);
