@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"/>
+    <meta name="keywords" content="">
+    <meta name="description" content="">
+    <meta name="author" content="mash5">
+    <title>Imagewall</title>
+    <link rel="stylesheet" href="image-wall.css">
+    <style type="text/css">
+    </style>
+
+  </head>
+  <body>
+    <div id="container"></div>
+    <script src="https://facebook.github.io/react/js/react.js"></script>
+    <script src="https://facebook.github.io/react/js/react-dom.js"></script>
+    <script src="JSXTransformer.js"></script>
+    
+    <script type="text/jsx" src="image-wall.js"></script>
+    <script type="text/jsx">
+
+        var images = [{
+            url: "http://images.apple.com/cn/home/images/hp_tiles_ipad_large.jpg",
+            linkout: "http://www.baidu.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/tradeup_large.jpg",
+            linkout: "http://www.sina.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/hp_tiles_ipad_large.jpg",
+            linkout: "http://www.jd.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/promos/teaser_large.jpg",
+            linkout: "http://www.qq.com"
+        }];
+        ReactDOM.render(<ImageWall images={images}/>,
+            document.getElementById('container')
+        );
+    </script>
+  </body>
+</html>

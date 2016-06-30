@@ -1,0 +1,30 @@
+.imagewall {
+    margin: auto;
+}
+.imagewall ul {
+    margin: 0;
+    padding: 0;
+}
+.imagewall-item {
+    width: 25%;
+    height: 200px;
+    background-position: center center;
+    background-repeat: no-repeat;
+    margin: 0;
+    padding: 0;
+    float: left;
+    overflow: hidden;
+    list-style: none;
+    max-height: 200px;
+    border-bottom: 2px solid #fff;
+}
+@media only screen and (max-width: 1068px) {
+    .imagewall-item {
+        width: 50%;
+    }
+}
+@media only screen and (max-width: 735px) {
+    .imagewall-item {
+        width: 100%;
+    }
+}
