@@ -15,12 +15,41 @@
   </head>
   <body>
     <div id="container"></div>
-    <script src="https://facebook.github.io/react/js/react.js"></script>
-    <script src="https://facebook.github.io/react/js/react-dom.js"></script>
+    <script src="react.js"></script>
+    <script src="react-dom.js"></script>
     <script src="JSXTransformer.js"></script>
     
-    <script type="text/jsx" src="image-wall.js"></script>
     <script type="text/jsx">
+(function(win){
+    var ImageWall = React.createClass({
+        getDefaultProps: function(){
+            return {
+               images: []
+            }    
+        },
+        
+        onClick: function(image) {
+            if (image.linkout) {
+                window.open(image.linkout);
+            }
+        },
+        
+        render: function() {
+            return (<div className="imagewall"><ul>
+            {
+                this.props.images.map(function(image, i) {
+                    return (<li className="imagewall-item" key={i} style={{"background-image": "url("+image.url+")"}} onClick={this.onClick.bind(this, image)}></li>)
+                }, this)
+            }
+            </ul></div>);
+        }
+    });
+    
+    
+    win.ImageWall = ImageWall;
+    
+})(window)
+
 
         var images = [{
             url: "http://images.apple.com/cn/home/images/hp_tiles_ipad_large.jpg",
