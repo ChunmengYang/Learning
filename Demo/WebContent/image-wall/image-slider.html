@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"/>
+    <meta name="keywords" content="">
+    <meta name="description" content="">
+    <meta name="author" content="mash5">
+    <title>关于我们</title>
+    <link rel="icon" href="favicon.ico">
+    
+    <link rel="stylesheet" href="/weblib/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/weblib/css/glyphicons.css">
+    <link rel="stylesheet" href="default.css">
+    <link rel="stylesheet" href="image-wall.css">
+    <style type="text/css">
+    .slider {
+        position: relative;
+        left: 0px;
+        top: 0px;
+        width: 100%;
+        height: 200px;
+        overflow: hidden;
+    }
+    .slider-item {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        width: 100%;
+        height: 200px;
+        background-position: center center;
+        background-repeat: no-repeat;
+        margin: 0;
+        padding: 0;
+        transition: left 1s ease 0s;
+    }
+    .slider-item-notran {
+        transition: none;
+    }
+    </style>
+
+  </head>
+  <body>
+    <div id="container"></div>
+    
+    <script src="react.js"></script>
+    <script src="react-dom.js"></script>
+    <script src="JSXTransformer.js"></script>
+    
+    <script type="text/jsx" src="image-wall.js"></script>
+    <script type="text/jsx">
+    var ImageSlider = React.createClass({
+            getDefaultProps: function(){
+                return {
+                    images: []
+                }    
+            },
+            
+            getInitialState:function(){
+                return {
+                    willChange: true 
+                }
+            },
+  
+            componentWillMount: function() {
+                this.setState({
+                   width: document.body.clientWidth
+                });
+                window.onresize = function(e) {
+                    this.setState({
+                       width: document.body.clientWidth
+                    });
+                }.bind(this);
+                
+                this.interval = setInterval(this.next.bind(this), 4000);
+            },
+            
+            onClick: function(image) {
+                if (image.linkout) {
+                    window.open(image.linkout);
+                }
+            },
+            
+            pre: function() {
+                var index = this.currentIndex || 0;
+                index--;
+                if (index < 0) {
+                    index = this.props.images.length - 1;
+                }
+                this.currentIndex = index;
+                this.setState({
+                   willChange: true
+                });
+            },
+            
+            next: function() {
+                var index = this.currentIndex || 0;
+                index++;
+                if (index >= this.props.images.length) {
+                    index = 0;
+                }
+                this.currentIndex = index;
+                this.setState({
+                   willChange: true
+                });
+            },
+            
+            change: function(e) {
+                clearInterval(this.interval);
+                this.next();
+                this.interval = setInterval(this.next.bind(this), 4000);
+            },
+            
+            render: function() {
+                if (this.state.willChange) {
+                    var lastIndex = this.props.images.length - 1;
+                    var currentIndex = this.currentIndex || 0;
+                    var preIndex = this.preIndex || 0;
+                   
+                    var moveType = "right";
+                    var moveCount = 0;
+                    var lastIndex = this.props.images.length - 1;
+                    
+                    if (currentIndex > preIndex) {
+                        var rightmove = currentIndex - preIndex;
+                        var leftmove = preIndex + (lastIndex - currentIndex + 1) 
+                        if (leftmove < rightmove) {
+                            moveType = "left";
+                            moveCount = leftmove;
+                        } else {
+                            moveCount = rightmove;
+                        }
+                    } else {
+                        var leftmove = preIndex - currentIndex;
+                        var rightmove = (lastIndex - preIndex) + 1 + currentIndex;
+                        if (leftmove < rightmove) {
+                            moveType = "left";
+                            moveCount = leftmove;
+                        } else {
+                            moveCount = rightmove;
+                        }
+                    }
+                    
+                    this.preIndex = currentIndex;
+                    this.moveType = moveType;
+                    this.moveCount = moveCount;
+                    this.leftValueArray = [];
+
+                    setTimeout(function(){
+                        this.setState({
+                          willChange: false
+                        });
+                    }.bind(this), 100);
+                    
+                     return (<div className="slider" onClick={this.change.bind(this)}>
+                        {
+                            this.props.images.map(function(image, i) {
+                                var leftValue = 0;
+                                var className = "slider-item slider-item-notran";
+                                if (moveType == "left") {
+                                    if (i <= preIndex) {
+                                        leftValue = -(preIndex - i) * this.state.width;
+                                    } else {
+                                        leftValue = -(preIndex + lastIndex - i + 1) * this.state.width;
+                                    }
+                                } else {
+                                    if (i >= preIndex) {
+                                        leftValue = (i - preIndex) * this.state.width;
+                                    } else {
+                                        leftValue = (lastIndex - preIndex + i + 1) * this.state.width;
+                                    }
+                                }
+                                this.leftValueArray.push(leftValue);
+                                return (<div className={className} key={i} style={{"background-image": "url("+image.url+")", left: leftValue}}></div>)
+                            }, this)
+                        }
+                        </div>);
+                } else {
+                    var moveType = this.moveType;
+                    var moveCount = this.moveCount;
+                    var leftValueArray = this.leftValueArray;
+                    return (<div className="slider" onClick={this.change.bind(this)}>
+                        {
+                            this.props.images.map(function(image, i) {
+                                var leftValue = 0;
+                                var className = "slider-item";
+                                if (moveType == "left") {
+                                    leftValue = leftValueArray[i] + moveCount * this.state.width;
+                                } else {
+                                    leftValue = leftValueArray[i] - moveCount * this.state.width;
+                                }
+                                return (<div className={className} key={i} style={{"background-image": "url("+image.url+")", left: leftValue}}></div>)
+                            }, this)
+                        }
+                        </div>);
+                    
+                }
+            }
+        });
+        
+        var images = [{
+            url: "http://images.apple.com/cn/home/images/hp_tiles_ipad_large.jpg",
+            linkout: "http://www.baidu.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/tradeup_large.jpg",
+            linkout: "http://www.sina.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/hp_tiles_ipad_large.jpg",
+            linkout: "http://www.jd.com"
+        },{
+            url: "http://images.apple.com/cn/home/images/promos/teaser_large.jpg",
+            linkout: "http://www.qq.com"
+        }];
+        ReactDOM.render(<ImageSlider images={images}/>,
+            document.getElementById('container')
+        );
+    </script>
+  </body>
+</html>
