@@ -9,18 +9,15 @@
     <meta name="author" content="mash5">
     <title>关于我们</title>
     <link rel="icon" href="favicon.ico">
-    
-    <link rel="stylesheet" href="/weblib/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/weblib/css/glyphicons.css">
+    <link href="/weblib/css/font-awesome.min.css" rel="stylesheet">
     <link rel="stylesheet" href="default.css">
-    <link rel="stylesheet" href="image-wall.css">
     <style type="text/css">
     .slider {
         position: relative;
         left: 0px;
         top: 0px;
         width: 100%;
-        height: 200px;
+        height: 400px;
         overflow: hidden;
     }
     .slider-item {
@@ -38,6 +35,77 @@
     .slider-item-notran {
         transition: none;
     }
+    
+    .dotnav {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 30px;
+        text-align: center;
+        z-index: 999;
+    }
+    .dotnav ul {
+        display: inline-block;
+        margin: 0;
+        padding: 0;
+    }
+    .dotnav li {
+        position: relative;
+        list-style: none;
+        width: 30px;
+        height: 30px;
+        float: left;
+        cursor: pointer;
+    }
+    .dotnav-item {
+        position: absolute;
+        left: 11px;
+        top: 11px;
+        width: 9px;
+        height: 9px;
+        border: 1px solid #888;
+        border-radius: 50%;
+        background-color: #888;
+    }
+    .dotnav-item-active {
+        background-color: #fff;
+    }
+    .arrownav-pre {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 999;
+        height: 100%;
+        width: 50px;  
+        cursor: pointer;
+        color: #888;
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+    .arrownav-pre span {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        margin-top: -35px;
+    }
+    .arrownav-next {
+        position: absolute;
+        right: 0;
+        top: 0;
+        z-index: 999;
+        height: 100%;
+        width: 50px;
+        cursor: pointer;
+        color: #888;
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+    .arrownav-next span {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        margin-top: -35px;
+    }
     </style>
 
   </head>
@@ -47,8 +115,7 @@
     <script src="react.js"></script>
     <script src="react-dom.js"></script>
     <script src="JSXTransformer.js"></script>
-    
-    <script type="text/jsx" src="image-wall.js"></script>
+
     <script type="text/jsx">
     var ImageSlider = React.createClass({
             getDefaultProps: function(){
@@ -73,7 +140,7 @@
                     });
                 }.bind(this);
                 
-                this.interval = setInterval(this.next.bind(this), 4000);
+                this.interval = setInterval(this.carousel.bind(this), 4000);
             },
             
             onClick: function(image) {
@@ -82,19 +149,7 @@
                 }
             },
             
-            pre: function() {
-                var index = this.currentIndex || 0;
-                index--;
-                if (index < 0) {
-                    index = this.props.images.length - 1;
-                }
-                this.currentIndex = index;
-                this.setState({
-                   willChange: true
-                });
-            },
-            
-            next: function() {
+            carousel: function() {
                 var index = this.currentIndex || 0;
                 index++;
                 if (index >= this.props.images.length) {
@@ -106,10 +161,51 @@
                 });
             },
             
-            change: function(e) {
+            pre: function() {
                 clearInterval(this.interval);
-                this.next();
-                this.interval = setInterval(this.next.bind(this), 4000);
+                var index = this.currentIndex || 0;
+                index--;
+                if (index < 0) {
+                    index = this.props.images.length - 1;
+                }
+                this.currentIndex = index;
+                this.setState({
+                   willChange: true
+                });
+                this.interval = setInterval(this.carousel.bind(this), 4000);
+            },
+            
+            next: function() {
+                clearInterval(this.interval);
+                var index = this.currentIndex || 0;
+                index++;
+                if (index >= this.props.images.length) {
+                    index = 0;
+                }
+                this.currentIndex = index;
+                this.setState({
+                   willChange: true
+                });
+                this.interval = setInterval(this.carousel.bind(this), 4000);
+            },
+            
+            change: function(index) {
+                clearInterval(this.interval);
+                this.currentIndex = index;
+                this.setState({
+                   willChange: true
+                });
+                this.interval = setInterval(this.carousel.bind(this), 4000);
+            },
+            
+            onMouseOver: function() {
+                this.refs.preArrownav.style.opacity = 1;
+                this.refs.nextArrownav.style.opacity = 1;
+            },
+            
+            onMouseOut: function() {
+                this.refs.preArrownav.style.opacity = 0;
+                this.refs.nextArrownav.style.opacity = 0;
             },
             
             render: function() {
@@ -153,7 +249,22 @@
                         });
                     }.bind(this), 100);
                     
-                     return (<div className="slider" onClick={this.change.bind(this)}>
+                     return (<div className="slider" onMouseOver={this.onMouseOver} onMouseOut={this.onMouseOut}>
+                        <nav className="arrownav">
+                            <div className="arrownav-pre" ref="preArrownav" onClick={this.pre}><span className="fa fa-angle-left fa-5x"></span></div>
+                            <div className="arrownav-next" ref="nextArrownav" onClick={this.next}><span className="fa fa-angle-right fa-5x"></span></div>
+                        </nav>
+                        <nav className="dotnav"><ul>
+                        {
+                            this.props.images.map(function(image, i) {
+                                var className = "dotnav-item";
+                                if (currentIndex == i) {
+                                    className = "dotnav-item dotnav-item-active";
+                                }
+                                return (<li onClick={this.change.bind(this, i)}><span className={className}></span></li>)
+                            }, this)
+                        }
+                        </ul></nav>
                         {
                             this.props.images.map(function(image, i) {
                                 var leftValue = 0;
@@ -177,10 +288,26 @@
                         }
                         </div>);
                 } else {
+                    var currentIndex = this.currentIndex || 0;
                     var moveType = this.moveType;
                     var moveCount = this.moveCount;
                     var leftValueArray = this.leftValueArray;
-                    return (<div className="slider" onClick={this.change.bind(this)}>
+                    return (<div className="slider" onMouseOver={this.onMouseOver} onMouseOut={this.onMouseOut}>
+                        <nav className="arrownav">
+                            <div className="arrownav-pre" ref="preArrownav" onClick={this.pre}><span className="fa fa-angle-left fa-5x"></span></div>
+                            <div className="arrownav-next" ref="nextArrownav" onClick={this.next}><span className="fa fa-angle-right fa-5x"></span></div>
+                        </nav>
+                        <nav className="dotnav"><ul>
+                        {
+                            this.props.images.map(function(image, i) {
+                                var className = "dotnav-item";
+                                if (currentIndex == i) {
+                                    className = "dotnav-item dotnav-item-active";
+                                }
+                                return (<li onClick={this.change.bind(this, i)}><span className={className}></span></li>)
+                            }, this)
+                        }
+                        </ul></nav>
                         {
                             this.props.images.map(function(image, i) {
                                 var leftValue = 0;
