@@ -1,10 +1,12 @@
 var MongoClient = require('mongodb').MongoClient;
+var ObjectID = require('mongodb').ObjectID;
 var assert = require('assert');
   // Connection URL
 var url = 'mongodb://localhost:27017/yunyun';
 
 var Account = {
-	__TABLE_NAME: 'Account',
+	__TABLE_NAME_ACCOUNT: 'Account',
+	__TABLE_NAME_SESSION: 'Session',
 
     __connect(callback) {
     	// Use connect method to connect to the Server
@@ -17,7 +19,7 @@ var Account = {
     },
 
     register(account, password, callback) {
-    	var tableName = this.__TABLE_NAME;
+    	var tableName = this.__TABLE_NAME_ACCOUNT;
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
@@ -28,7 +30,7 @@ var Account = {
 					db.close();
 					(typeof callback === 'function') && callback(false);
 				} else {
-					collection.insertOne({account: account, password: password}, {}, function(err, r) {
+					collection.insertOne({account: account, password: password, createTime: Date.now(), modifyTime: Date.now()}, {}, function(err, r) {
 					    assert.equal(err, null);
 						assert.equal(1, r.insertedCount);
 
@@ -41,57 +43,87 @@ var Account = {
     },
 
     login(account, password, callback) {
-    	var tableName = this.__TABLE_NAME;
+    	var tableName = this.__TABLE_NAME_ACCOUNT;
+    	var _this = this;
+
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
 	    	collection.findOne({account: account, password: password}, {}, function(err, user) {
 				assert.equal(err, null);
 
-				var sessionId = null;
 				if (user) {
-					if (user.sessionId) {
-						sessionId = user.sessionId;
-					} else {
-						var crypto = require('crypto');
-						var md5 = crypto.createHash('md5');
-						sessionId = md5.update(account + Date.now()).digest('base64');
-						collection.updateOne({_id: user._id},{$set: {sessionId: sessionId, sessionTime: Date.now()}}, {}, function(err, r) {
-						    assert.equal(err, null);
-						    assert.equal(1, r.modifiedCount);
-						});
-					}
+					db.close();
+					_this.querySessionId(user._id, callback);
+				} else {
+					db.close();
+					(typeof callback === 'function') && callback();
 				}
-				db.close();
-				(typeof callback === 'function') && callback(sessionId);
 			});    
+    	});
+    },
+
+    querySessionId(accountId, callback) {
+    	var tableName = this.__TABLE_NAME_SESSION;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			var dateNow = Date.now();
+			collection.findAndModify({accountId: accountId}, [], {$set: {sessionTime: dateNow, modifyTime: dateNow}}, function(err, result) {
+				assert.equal(err, null);
+				var status = result.ok;
+				var sessionId = result.value ? result.value.sessionId : null;
+
+				if (status === 1 && sessionId) {
+					db.close();
+					(typeof callback === 'function') && callback(sessionId);
+				} else {
+					var crypto = require('crypto');
+					var md5 = crypto.createHash('sha1');
+					sessionId = md5.update(accountId + Date.now()).digest('hex');
+					
+					collection.insertOne({accountId: accountId, sessionId: sessionId, sessionTime: dateNow, createTime: dateNow, modifyTime: dateNow}, {}, function(err, r) {
+					    assert.equal(err, null);
+						assert.equal(1, r.insertedCount);
+
+						db.close();
+					    (typeof callback === 'function') && callback(sessionId);
+					});
+				}
+			});  
     	});
     },
 
     checkSessionId(sessionId, callback) {
-    	var tableName = this.__TABLE_NAME;
+    	var tableName = this.__TABLE_NAME_SESSION;
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
-	    	collection.findOne({sessionId: sessionId}, {}, function(err, user) {
+			var dateNow = Date.now();
+			collection.findAndModify({sessionId: sessionId}, [], {$set: {sessionTime: dateNow, modifyTime: dateNow}}, function(err, result) {
 				assert.equal(err, null);
+				console.log(result);
 
-				var hasSessionId = false
-				if (user) {
-					hasSessionId = true;
-				}
+				var status = result.ok;
+				sessionId = result.value ? result.value.sessionId : null;
+
 				db.close();
-				(typeof callback === 'function') && callback(hasSessionId);
-			});    
+				if (status === 1 && sessionId) {
+					(typeof callback === 'function') && callback(sessionId);
+				} else {
+					(typeof callback === 'function') && callback();
+				}
+			});
     	});
     },
 
     removeExpiredSessionIds(callback) {
-    	var tableName = this.__TABLE_NAME;
+    	var tableName = this.__TABLE_NAME_SESSION;
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
-			var millisecond = Date.now() - 86400000;
-	    	collection.findAndModify({sessionTime: {$lt: millisecond}}, [], {$set: {sessionId: undefined, sessionTime: undefined}}, function(err, result) {
+
+			var millisecond = Date.now();//Date.now() - 86400000;
+	    	collection.findAndRemove({sessionTime: {$lt: millisecond}}, [], {}, function(err, result) {
 				assert.equal(err, null);
 
 				db.close();
@@ -101,7 +133,7 @@ var Account = {
     },
 
     queryAll(callback) {
-    	var tableName = this.__TABLE_NAME;
+    	var tableName = this.__TABLE_NAME_ACCOUNT;
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
@@ -134,10 +166,12 @@ var Goods = {
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
+			goods.createTime = Date.now();
+			goods.modifyTime = Date.now();
 			collection.insertOne(goods, {}, function(err, r) {
 			    assert.equal(err, null);
 				var status = false;
-				if (r.modifiedCount === 1) {
+				if (r.insertedCount === 1) {
 					status = true
 				}
 				db.close();
@@ -151,10 +185,20 @@ var Goods = {
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
-	    	collection.updateOne({_id: goods._id},{$set: goods}, {}, function(err, r) {
+			var goodsId = goods._id;
+			var data = {
+				modifyTime: Date.now()
+			};
+			for (var key in goods) {
+				if (key !== '_id') {
+					data[key] = goods[key];
+				}
+			}
+
+	    	collection.updateOne({_id: ObjectID(goodsId)}, {$set: data}, {}, function(err, r) {
 			    assert.equal(err, null);
 				var status = false;
-				if (r.insertedCount === 1) {
+				if (r.modifiedCount === 1) {
 					status = true
 				}
 				db.close();
@@ -168,7 +212,7 @@ var Goods = {
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
-			collection.findOne({_id: goodsId}, {}, function(err, goods) {
+			collection.findOne({_id: ObjectID(goodsId)}, {}, function(err, goods) {
 				assert.equal(err, null);
 
 				db.close();
@@ -177,13 +221,13 @@ var Goods = {
     	});
     },
 
-    query(where, sort, limt, pageIndex, callback) {
+    query(where, sort, limit, pageIndex, callback) {
     	var tableName = this.__TABLE_NAME;
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 			where = (typeof(where) === 'object') ? where : {};
 			sort = (typeof(sort) === 'object') ? sort : {};
-			limt = (typeof(limt) === 'number' && limt > 0) ? limt : 10;
+			limit = (typeof(limit) === 'number' && limit > 0) ? limit : 10;
 			pageIndex = (typeof(pageIndex) === 'number' && pageIndex > 0) ? pageIndex : 1;
 
 			var cursor = collection.find(where).sort(sort);
@@ -192,12 +236,12 @@ var Goods = {
 				assert.equal(err, null);
 
 				if (count > 0) {
-					var pageCount = Math.floor(count / limt) + ((count % limt) ? 1 : 0);
+					var pageCount = Math.floor(count / limit) + ((count % limit) ? 1 : 0);
 					if (pageIndex > pageCount) {
 						db.close();
 						(typeof callback === 'function') && callback({items: [], pageCount: pageCount, pageIndex: pageIndex});
 					} else {
-						cursor.skip((pageIndex - 1) * limt).limit(limt).toArray(function(err, items) {
+						cursor.skip((pageIndex - 1) * limit).limit(limit).toArray(function(err, items) {
 							assert.equal(err, null);
 
 					      	db.close();
@@ -213,7 +257,82 @@ var Goods = {
     }
 };
 
+var Attachment = {
+	__TABLE_NAME: 'Attachment',
+
+    __connect(callback) {
+    	// Use connect method to connect to the Server
+		MongoClient.connect(url, function(err, db) {
+		  assert.equal(null, err);
+		  console.log("Connected correctly to server");
+
+		  callback(db);
+		}.bind(this));
+    },
+
+    add(attachment, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			attachment.createTime = Date.now();
+			attachment.modifyTime = Date.now();
+			collection.insertOne(attachment, {}, function(err, r) {
+			    assert.equal(err, null);
+				var status = false;
+				if (r.insertedCount === 1) {
+					status = true
+				}
+				db.close();
+			    (typeof callback === 'function') && callback(status);
+			});
+    	});
+    },
+
+    update(attachment, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			var attachmentId = attachment._id;
+			var data = {
+				modifyTime: Date.now()
+			};
+			for (var key in attachment) {
+				if (key !== '_id') {
+					data[key] = attachment[key];
+				}
+			}
+
+	    	collection.updateOne({_id: ObjectID(attachmentId)}, {$set: data}, {}, function(err, r) {
+			    assert.equal(err, null);
+				var status = false;
+				if (r.modifiedCount === 1) {
+					status = true
+				}
+				db.close();
+			    (typeof callback === 'function') && callback(status);
+			});
+    	});
+    },
+
+    queryById(attachmentId, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			collection.findOne({_id: ObjectID(attachmentId)}, {}, function(err, attachment) {
+				assert.equal(err, null);
+
+				db.close();
+				(typeof callback === 'function') && callback(attachment);
+			});    
+    	});
+    }
+};
+
 module.exports = {
 	Account: Account,
-	Goods: Goods
+	Goods: Goods,
+	Attachment: Attachment
 }

@@ -11,12 +11,22 @@ var path = require('path');
 var url = require('url');
 var datastore = require('./datastore');
 var errorcode = require('./errorcode');
-
+var formidable = require('formidable');
+var fs = require('fs');
 var app = express();
 
 app.use(express.static(path.join(__dirname, 'web')));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
+
+function tryParseJSON (str) {
+	try {
+		return JSON.parse(str);
+	} catch(e) {
+		console.log("tryParseJSON:=====" + str);
+		return null;
+	}
+}
 
 function checkSessionId(sessionId, res, callback) {
 	if (typeof(sessionId) == 'string' && sessionId != '') {
@@ -87,7 +97,10 @@ app.get('/user/query', function(req, res){
 app.post('/goods/add', function(req, res){
 	var sessionId = req.body.sessionId;
 	checkSessionId(sessionId, res, function() {
-		var goods = req.body.goods;
+		var goods = req.body.goods; 
+		if (typeof(goods) === 'string') {
+			goods = tryParseJSON(goods);
+		}
 		if (typeof(goods) === 'object') {
 			datastore.Goods.add(goods, function(status) {
 				res.json({success: status, operationTimes: Date.now()});
@@ -102,6 +115,9 @@ app.post('/goods/update', function(req, res){
 	var sessionId = req.body.sessionId;
 	checkSessionId(sessionId, res, function() {
 		var goods = req.body.goods;
+		if (typeof(goods) === 'string') {
+			goods = tryParseJSON(goods);
+		}
 		if (typeof(goods) === 'object' && goods._id) {
 			datastore.Goods.update(goods, function(status) {
 				res.json({success: status, operationTimes: Date.now()});
@@ -132,15 +148,49 @@ app.post('/goods/query', function(req, res){
 	var sessionId = req.body.sessionId;
 	checkSessionId(sessionId, res, function() {
 		var where = req.body.where;
+		if (typeof(where) === 'string') {
+			where = tryParseJSON(where);
+		}
 		var sort = req.body.sort;
-		var limt = req.body.limt;
+		if (typeof(sort) === 'string') {
+			sort = tryParseJSON(sort);
+		}
+		var limit = req.body.limit;
+		if (typeof(limit) === 'string') {
+			limit = parseInt(limit);
+		}
 		var pageIndex = req.body.pageIndex;
+		if (typeof(pageIndex) === 'string') {
+			pageIndex = parseInt(pageIndex);
+		}
 
-		datastore.Goods.query(where, sort, limt, pageIndex, function(result) {
-			res.json(result);
+		datastore.Goods.query(where, sort, limit, pageIndex, function(result) {
+			var status = !!result;
+
+			res.json({success: status, object: result, operationTimes: Date.now()});
 		});
 	});
 });
+
+
+app.post('/file/upload', function(req, res){
+	var form = new formidable.IncomingForm();
+	form.encoding = 'utf-8';
+	form.uploadDir = 'attachment';
+	form.keepExtensions = true;	
+	form.maxFieldsSize = 4 * 1024 * 1024;
+
+	form.parse(req, function(err, fields, files) {
+		if (err) {
+		  res.json({success: false, message: err, operationTimes: Date.now()});
+		  return;
+		}
+		
+		fs.renameSync(files.file.path, form.uploadDir + '/' + files.file.name);
+	    res.json({success: true, operationTimes: Date.now()});
+	});
+});
+
 
 app.listen(80);
 // service end

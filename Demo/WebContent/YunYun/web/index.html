@@ -2,332 +2,394 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>requestAnimationFrame</title>
+<title>YunYun</title>
 <style>
-.demo {
-	height: 600px;
-	position: relative;
+* {
+    font-family: "microsoft yahei", Arial, sans-serif;
 }
-ball {
-	width: 100px; height: 100px; border-radius: 100px;
-	position: absolute; left: 50%; top: 500px;
-	margin-left: -50px;
-	background-color: #34538b;
-	background-image: -webkit-radial-gradient(100px 100px at 50px 20px, #a0b3d6, #34538b);
-	background-image:    -moz-radial-gradient(100px 100px at 50px 20px, #a0b3d6, #34538b);
-	background-image:         radial-gradient(100px 100px at 50px 20px, #a0b3d6, #34538b);
-	cursor: move;
-	z-index: 1;
+html, body {
+    -webkit-text-size-adjust: none;
+    margin: 0;
+    padding: 0;
 }
-shadow {
-	position: absolute;
-	width: 100px; height: 30px;
-	position: absolute; left: 50%; bottom: 5px;
-	margin-left: -50px;
-	background-image: -webkit-radial-gradient(ellipse closest-side, rgba(0,0,0,.75), rgba(0,0,0,0));
-	background-image:    -moz-radial-gradient(ellipse closest-side, rgba(0,0,0,.75), rgba(0,0,0,0));
-	background-image:         radial-gradient(ellipse closest-side, rgba(0,0,0,.75), rgba(0,0,0,0));
+.logo {
+    text-align: center;
+    font-size: 40px;
+    font-weight: 500;
+    margin: 10px;
+}
+#add-goods {
+    padding: 8px 10px;
+    float: right;
+    margin: 15px 20px;
+    font-size: 14px;
+    color: #428bca;
+    text-decoration: none;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    cursor: pointer;
+}
+#yun-table {
+    padding: 10px 20px;
+}
+#yun-table-nav {
+    display: block;
+    float: right;
+    padding: 0px 20px;
+    margin-top: -10px;
+}
+.yun-table {
+    width: 100%;
+    height: 100%;
+    display: table;
+    border-collapse: collapse;
+}
+.yun-tr {
+    display: table-row; 
+    height: 100%;
+    background-color: #FFFFFF;
+}
+.yun-tr:hover {
+    background-color: #E0E8F1;
+}
+.yun-td {
+    display: table-cell; 
+    height: 100%;
+    border: 1px solid #ddd; 
+    text-align: center;
+    vertical-align: middle;
+    padding: 5px;
+}
+.clear {
+    clear: both;
+}
+.yun-pagination-item {
+    position: relative;
+    list-style: none;
+    float: left;
+    padding: 6px 12px;
+    margin-left: -1px;
+    line-height: 1.42857143;
+    color: #428bca;
+    text-decoration: none;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    cursor: pointer;
+}
+.yun-pagination-pre, .yun-pagination-next {
+    font-size: 12px;
+    padding: 6.5px 12px;
+}
+
+.fullscreen {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+#overflow {
+    z-index: 999;
+    display: none;
+    background-color: #000;
+    opacity: 0.4;
+}
+#add-goods-dialog {
+    z-index: 1000;
+    display: none;
+}
+#add-form {
+    position: relative;
+    background-color: #fff;
+    box-shadow: 0 5px 15px rgba(0,0,0,.5);
+    font-size: 14px;
+    text-align: center;
+    width: 500px;
+    margin: 30px auto;
+    top: 120px;
+    padding: 10px 5px;
+    border-radius: 5px;
+}
+#add-form div {
+    margin: 10px 5px;
+}
+#add-form input, #add-form textarea {
+    width: 380px;
+    padding: 0;
+    margin: 0;
+}
+#add-form-submit, #add-form-cancel {
+    width: 80px;
+    padding: 8px 5px;
+    background-color: #6477B7;
+    border: 1px solid #6477B7;
+    border-radius: 3px;
+    color: #fff;
+    float: right;
+    margin-right: 5px;
 }
 </style>
-<script src="http://libs.baidu.com/jquery/1.4.4/jquery.min.js"></script>
-<script type="text/javascript">
-(function() {
-    var lastTime = 0;
-    var vendors = ['webkit', 'moz'];
-    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-        window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[x] + 'CancelAnimationFrame'] ||
-                                      window[vendors[x] + 'CancelRequestAnimationFrame'];
-    }
+</head>
+<body>
+<div class="logo">云云购</div>
+<button id="add-goods">增加商品</button>
+<div id="yun-table"></div>
+<div id="yun-table-nav"></div>
 
-    if (!window.requestAnimationFrame) {
-        window.requestAnimationFrame = function(callback, element) {
-            var currTime = new Date().getTime();
-            var timeToCall = Math.max(0, 16.7 - (currTime - lastTime));
-            var id = window.setTimeout(function() {
-                callback(currTime + timeToCall);
-            }, timeToCall);
-            lastTime = currTime + timeToCall;
-            return id;
-        };
-    }
-    if (!window.cancelAnimationFrame) {
-        window.cancelAnimationFrame = function(id) {
-            clearTimeout(id);
-        };
-    }
-}());
-
-/*
- * Tween.js
- * t: current time（当前时间）；
- * b: beginning value（初始值）；
- * c: change in value（变化量）；
- * d: duration（持续时间）。
- * you can visit 'http://easings.net/zh-cn' to get effect
-*/
-var Tween = {
-    Linear: function(t, b, c, d) { return c*t/d + b; },
-    Quad: {
-        easeIn: function(t, b, c, d) {
-            return c * (t /= d) * t + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return -c *(t /= d)*(t-2) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if ((t /= d / 2) < 1) return c / 2 * t * t + b;
-            return -c / 2 * ((--t) * (t-2) - 1) + b;
-        }
-    },
-    Cubic: {
-        easeIn: function(t, b, c, d) {
-            return c * (t /= d) * t * t + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return c * ((t = t/d - 1) * t * t + 1) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if ((t /= d / 2) < 1) return c / 2 * t * t*t + b;
-            return c / 2*((t -= 2) * t * t + 2) + b;
-        }
-    },
-    Quart: {
-        easeIn: function(t, b, c, d) {
-            return c * (t /= d) * t * t*t + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return -c * ((t = t/d - 1) * t * t*t - 1) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if ((t /= d / 2) < 1) return c / 2 * t * t * t * t + b;
-            return -c / 2 * ((t -= 2) * t * t*t - 2) + b;
-        }
-    },
-    Quint: {
-        easeIn: function(t, b, c, d) {
-            return c * (t /= d) * t * t * t * t + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return c * ((t = t/d - 1) * t * t * t * t + 1) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if ((t /= d / 2) < 1) return c / 2 * t * t * t * t * t + b;
-            return c / 2*((t -= 2) * t * t * t * t + 2) + b;
-        }
-    },
-    Sine: {
-        easeIn: function(t, b, c, d) {
-            return -c * Math.cos(t/d * (Math.PI/2)) + c + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return c * Math.sin(t/d * (Math.PI/2)) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            return -c / 2 * (Math.cos(Math.PI * t/d) - 1) + b;
-        }
-    },
-    Expo: {
-        easeIn: function(t, b, c, d) {
-            return (t==0) ? b : c * Math.pow(2, 10 * (t/d - 1)) + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return (t==d) ? b + c : c * (-Math.pow(2, -10 * t/d) + 1) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if (t==0) return b;
-            if (t==d) return b+c;
-            if ((t /= d / 2) < 1) return c / 2 * Math.pow(2, 10 * (t - 1)) + b;
-            return c / 2 * (-Math.pow(2, -10 * --t) + 2) + b;
-        }
-    },
-    Circ: {
-        easeIn: function(t, b, c, d) {
-            return -c * (Math.sqrt(1 - (t /= d) * t) - 1) + b;
-        },
-        easeOut: function(t, b, c, d) {
-            return c * Math.sqrt(1 - (t = t/d - 1) * t) + b;
-        },
-        easeInOut: function(t, b, c, d) {
-            if ((t /= d / 2) < 1) return -c / 2 * (Math.sqrt(1 - t * t) - 1) + b;
-            return c / 2 * (Math.sqrt(1 - (t -= 2) * t) + 1) + b;
-        }
-    },
-    Elastic: {
-        easeIn: function(t, b, c, d, a, p) {
-            var s;
-            if (t==0) return b;
-            if ((t /= d) == 1) return b + c;
-            if (typeof p == "undefined") p = d * .3;
-            if (!a || a < Math.abs(c)) {
-                s = p / 4;
-                a = c;
-            } else {
-                s = p / (2 * Math.PI) * Math.asin(c / a);
-            }
-            return -(a * Math.pow(2, 10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b;
-        },
-        easeOut: function(t, b, c, d, a, p) {
-            var s;
-            if (t==0) return b;
-            if ((t /= d) == 1) return b + c;
-            if (typeof p == "undefined") p = d * .3;
-            if (!a || a < Math.abs(c)) {
-                a = c; 
-                s = p / 4;
-            } else {
-                s = p/(2*Math.PI) * Math.asin(c/a);
-            }
-            return (a * Math.pow(2, -10 * t) * Math.sin((t * d - s) * (2 * Math.PI) / p) + c + b);
-        },
-        easeInOut: function(t, b, c, d, a, p) {
-            var s;
-            if (t==0) return b;
-            if ((t /= d / 2) == 2) return b+c;
-            if (typeof p == "undefined") p = d * (.3 * 1.5);
-            if (!a || a < Math.abs(c)) {
-                a = c; 
-                s = p / 4;
-            } else {
-                s = p / (2  *Math.PI) * Math.asin(c / a);
-            }
-            if (t < 1) return -.5 * (a * Math.pow(2, 10* (t -=1 )) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b;
-            return a * Math.pow(2, -10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p ) * .5 + c + b;
-        }
-    },
-    Back: {
-        easeIn: function(t, b, c, d, s) {
-            if (typeof s == "undefined") s = 1.70158;
-            return c * (t /= d) * t * ((s + 1) * t - s) + b;
-        },
-        easeOut: function(t, b, c, d, s) {
-            if (typeof s == "undefined") s = 1.70158;
-            return c * ((t = t/d - 1) * t * ((s + 1) * t + s) + 1) + b;
-        },
-        easeInOut: function(t, b, c, d, s) {
-            if (typeof s == "undefined") s = 1.70158; 
-            if ((t /= d / 2) < 1) return c / 2 * (t * t * (((s *= (1.525)) + 1) * t - s)) + b;
-            return c / 2*((t -= 2) * t * (((s *= (1.525)) + 1) * t + s) + 2) + b;
-        }
-    },
-    Bounce: {
-        easeIn: function(t, b, c, d) {
-            return c - Tween.Bounce.easeOut(d-t, 0, c, d) + b;
-        },
-        easeOut: function(t, b, c, d) {
-            if ((t /= d) < (1 / 2.75)) {
-                return c * (7.5625 * t * t) + b;
-            } else if (t < (2 / 2.75)) {
-                return c * (7.5625 * (t -= (1.5 / 2.75)) * t + .75) + b;
-            } else if (t < (2.5 / 2.75)) {
-                return c * (7.5625 * (t -= (2.25 / 2.75)) * t + .9375) + b;
-            } else {
-                return c * (7.5625 * (t -= (2.625 / 2.75)) * t + .984375) + b;
-            }
-        },
-        easeInOut: function(t, b, c, d) {
-            if (t < d / 2) {
-                return Tween.Bounce.easeIn(t * 2, 0, c, d) * .5 + b;
-            } else {
-                return Tween.Bounce.easeOut(t * 2 - d, 0, c, d) * .5 + c * .5 + b;
-            }
-        }
-    }
+<div id="overflow" class="fullscreen">
+</div>
+<div id="add-goods-dialog" class="fullscreen">
+    <div id="add-form">
+        <input type="hidden" id="add-form-id" />
+        <div>名称：<input type="text" id="add-form-name" /></div>
+        <div>描述：<textarea id="add-form-desc"></textarea></div>
+        <div>价格：<input type="text" id="add-form-price" /></div>
+        <div><input type="file" id="choose-file"/></div>
+        <div><button id="add-form-submit">确定</button><button id="add-form-cancel">取消</button>
+        <div class="clear"></div>
+        </div>
+    </div>
+</div>
+<script src="assets/js/jquery.js"></script>
+<script src="assets/js/react.js"></script>
+<script src="assets/js/react-dom.js"></script>
+<script src="assets/js/JSXTransformer.js"></script>
+<script type="text/jsx">
+var sessionId = sessionStorage.getItem("YUNYUN_SESSIONID");
+if (!sessionId) {
+    window.location.href = "login.html";
 }
-Math.tween = Tween;
+var YunTable = React.createClass({
+    getDefaultProps: function(){
+        return {
+           items: []
+        }    
+    },
+    
+    editItem: function(item) {
+        $("#add-form-id").val(item._id);
+        $("#add-form-name").val(item.name);
+        $("#add-form-desc").val(item.desc);
+        $("#add-form-price").val(item.price);
 
-$(function() {
-	var ball = $("ball"), shadow = $("shadow");
-	var objBall = {};
-	var shadowWithBall = function(top) {
-		// 0 ~ 500
-		var top = top || parseInt(ball.css("top")),
-		scale = 1 + (500 - top) / 300;
-		opacity = 1 - (500 - top) / 300;
-		if (opacity < 0) opacity = 0;
-		shadow.css("opacity", opacity)
-		.css("WebkitTransform", "scale("+ [scale, scale].join(",") +")")
-		.css("transform", "scale("+ [scale, scale].join(",") +")");
-	}, funFall = function() {
-		var start = 0, during = 100;
-		var _run = function() {
-			start++;
-			var top = Tween.Bounce.easeOut(start, objBall.top, 500 - objBall.top, during);
-			ball.css("top", top);
-			shadowWithBall(top);
-			if (start < during) requestAnimationFrame(_run);
-		};
-		_run();
-	};
-	ball.bind("mousedown", function(event) {
-		objBall.pageY = event.pageY;
-		objBall.flagFollow = true;	
-	});
-	$(document).bind("mousemove", function(event) {
-		if (objBall.flagFollow) {
-			var pageY = event.pageY;
-			//console.log(pageY);
-			objBall.top = 500 - (objBall.pageY - pageY);
-			if (objBall.top < 0) {
-				objBall.top = 0;
-			} else if (objBall.top > 500) {
-				objBall.top = 500;
-			};
-			ball.css("top", objBall.top);
-			shadowWithBall(objBall.top);	
-		}
-	});
-	$(document).bind("mouseup", function(event) {
-		if (objBall.flagFollow) funFall();
-		objBall.flagFollow = false;	
-	});
-	
-        
-    fetch("http://localhost/user/login", {
+        $("#overflow").show();
+        $("#add-goods-dialog").show();
+    },
+
+    render: function() {
+        return (<div className="yun-table">
+        {
+            this.props.items.map(function(item, i) {
+                var rows = [];
+                for (var key in item) {
+                    var value = item[key];
+                    rows.push(<div className="yun-td" key={key + i}>{value}</div>);
+                }
+                rows.push(<div className="yun-td" key={"edit" + i} ><button onClick={this.editItem.bind(this, item)}>编辑</button></div>);
+
+                return (<div className="yun-tr" key={i}>{rows}</div>)
+            }, this)
+        }
+        </div>);
+    }
+});
+
+var YunPaginationNav = React.createClass({
+    getDefaultProps: function(){
+        return {
+           pageCount: 0,
+           pageIndex: 1,
+           callback: function() {}
+        }   
+    },
+
+    componentWillMount: function() {
+        this.firstIndex = this.props.pageIndex;
+        this.pageCount = this.props.pageCount;
+        this.pageIndex = this.props.pageIndex;
+    },
+
+    pre: function() {
+        var pageIndex = this.pageIndex - 1;
+        if (pageIndex < 1) {
+            pageIndex = 1;
+        }
+        this.gotoIndex(pageIndex);
+    },
+
+    next: function() {
+        var pageIndex = this.pageIndex + 1;
+        if (pageIndex > this.pageCount) {
+            pageIndex = this.pageCount;
+        }
+        this.gotoIndex(pageIndex);
+    },
+
+    gotoIndex: function(pageIndex) {
+        this.pageIndex = pageIndex;
+        var callback = this.props.callback;
+        (typeof(callback) === 'function') && callback(pageIndex);
+    },
+    
+    render: function() {
+        var pageCount = this.props.pageCount;
+        var pageIndex = this.props.pageIndex;
+
+        if (pageCount <= 0) {
+            return (<div></div>);
+        }
+        if (pageIndex > pageCount){
+            pageIndex = pageCount
+        }
+
+        if (!this.firstIndex) {
+            this.firstIndex = pageIndex;  
+        } else {
+            if (pageIndex >= this.firstIndex) {
+                if ((pageIndex - 5) >= this.firstIndex) {
+                    this.firstIndex = pageIndex;    
+                }
+            } else {
+                this.firstIndex -= 5;
+                if (this.firstIndex < 1) {
+                    this.firstIndex = 1;
+                }
+            }
+        }
+        var showCount = 5;
+
+        var tempCount = pageCount - this.firstIndex;
+        if (tempCount < showCount) {
+            showCount = tempCount;
+        }
+
+        var cells = [];
+        for (var i = 0; i <= showCount; i++) {
+            var index = this.firstIndex + i;
+            cells.push(<li className="yun-pagination-item" key={index} onClick={this.gotoIndex.bind(this, index)}>{index}</li>);
+        }
+
+        return (<div className="yun-pagination-nav"><ul>
+        <li className="yun-pagination-item yun-pagination-pre" onClick={this.pre}>上一页</li>
+        {cells}
+        <li className="yun-pagination-item">{pageIndex + " / " + pageCount}</li>
+        <li className="yun-pagination-item yun-pagination-next" onClick={this.next}>下一页</li>
+        </ul><div className="clear"></div></div>);
+    }
+});
+
+function queryGoods(pageIndex) {
+    fetch("http://localhost/goods/query", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: "account=18612186210&password=666666"
+        body: "sessionId=" + sessionId + "&sort=" + JSON.stringify({modifyTime: -1}) + "&limit=5&pageIndex=" + pageIndex
     }).then((response) => response.json())
     .then((responseData) => {
         console.log(responseData);
+        //TODO 
+        if (responseData.success && responseData.object) {
+            var data = responseData.object;
+            var items = data.items;
+            var pageCount = data.pageCount;
+            var pageIndex = data.pageIndex;
 
-        fetch("http://localhost/user/query?sessionId=" + responseData.object).then((response) => response.json())
+            ReactDOM.render(<YunTable items={items}/>, document.getElementById('yun-table'));
+           
+            var callback = function(index) {
+                queryGoods(index);
+            };
+            ReactDOM.render(<YunPaginationNav pageCount={pageCount} pageIndex={pageIndex} callback={callback}/>, document.getElementById('yun-table-nav'));
+        } 
+    });
+}
+
+var showAddFrom = function() {
+    $("#overflow").show();
+    $("#add-goods-dialog").show();
+};
+var hideAddFrom = function() {
+    $("#add-form-id").val("");
+    $("#add-form-name").val("");
+    $("#add-form-desc").val("");
+    $("#add-form-price").val("");
+
+    $("#overflow").hide();
+    $("#add-goods-dialog").hide();
+};
+$("#add-goods").click(showAddFrom);
+$("#add-form-cancel").click(hideAddFrom);
+
+$("#add-form-submit").click(function() {
+    var goodsId = $("#add-form-id").val();
+    var name = $("#add-form-name").val();
+    var desc = $("#add-form-desc").val();
+    var price = $("#add-form-price").val();
+    price = parseFloat(price);
+
+    if (name !== "" && typeof(price) === "number" && price > 0) {
+        var goods = {
+            name: name,
+            desc: desc,
+            price: price
+        };
+
+        var url = "http://localhost/goods/add";
+        if (goodsId && goodsId != "") {
+            url = "http://localhost/goods/update";
+            goods._id = goodsId;
+        }
+        fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "sessionId=" + sessionId + "&goods=" + JSON.stringify(goods)
+        }).then((response) => response.json())
+        .then((responseData) => {
+            console.log(responseData);
+            if (responseData.success) {
+                hideAddFrom();
+                queryGoods(1);
+            } else {
+                alert("操作失败！");
+            } 
+        });
+    } else {
+        alert("请输入正确的数据！");
+    }
+});
+
+$("#choose-file").change(function(e){
+    var files = this.files;
+    
+    if(files && files.length > 0){
+        var file = files[0];
+
+        var data = new FormData();
+        data.append('file', file);
+        data.append('sessionId', sessionId)
+
+        fetch("http://localhost/file/upload", {
+            method: "POST",
+            body: data
+        }).then((response) => response.json())
         .then((responseData) => {
             console.log(responseData);
         });
-    });
-
-    // fetch("http://localhost/user/query?sessionId=06OA8YvvDLj08bBfZ35NhA==").then((response) => response.json())
-    // .then((responseData) => {
-    //     console.log(responseData);
-    // });
-
-    // var isAsync = true;
-    // var url = "http://localhost/user/login";
-    // var params = {
-    //     account: "18612186210",
-    //     password: "888888"
-    // };
-    // $.ajax({
-    //     async: isAsync,
-    //     type: "POST",
-    //     contentType: "application/x-www-form-urlencoded",
-    //     url: url,
-    //     data: params,
-    //     complete: function(r, s) {
-    //         console.log(r.responseText);
-    //     }
-    // });
+    }
 });
+
+
+$(function() {
+    queryGoods(1);
+})
 </script>
-</head>
-<body>
-<div id="response"></div>
-<div class="demo">
- 	<ball style="top: 500px;"></ball>
- 	<shadow style="opacity: 1; transform: scale(1, 1);"></shadow>
-</div>
 </body>
 </html>
