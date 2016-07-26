@@ -130,20 +130,6 @@ var Account = {
 				(typeof callback === 'function') && callback(result);
 			});    
     	});
-    },
-
-    queryAll(callback) {
-    	var tableName = this.__TABLE_NAME_ACCOUNT;
-    	this.__connect(function(db) {
-			var collection = db.collection(tableName);
-
-			collection.find().toArray(function(err, accounts) {
-				assert.equal(err, null);
-
-				(typeof callback === 'function') && callback(accounts);
-				db.close();
-			});      
-    	});
     }
 };
 
@@ -279,12 +265,11 @@ var Attachment = {
 			attachment.modifyTime = Date.now();
 			collection.insertOne(attachment, {}, function(err, r) {
 			    assert.equal(err, null);
-				var status = false;
-				if (r.insertedCount === 1) {
-					status = true
-				}
+			    assert.equal(r.insertedCount, 1);
+				
+				var attachmentId = r.insertedId;
 				db.close();
-			    (typeof callback === 'function') && callback(status);
+			    (typeof callback === 'function') && callback(attachmentId);
 			});
     	});
     },
@@ -331,8 +316,145 @@ var Attachment = {
     }
 };
 
+
+var Groupon = {
+	__TABLE_NAME: 'GrouponGoods',
+
+    __connect(callback) {
+    	// Use connect method to connect to the Server
+		MongoClient.connect(url, function(err, db) {
+		  assert.equal(null, err);
+		  console.log("Connected correctly to server");
+
+		  callback(db);
+		}.bind(this));
+    }
+};
+
+/**
+	status:
+	1---提交订单
+	2---取消订单
+	3---已付款
+	4---已完成
+**/
+var Order = {
+	__TABLE_NAME: 'Order',
+	STATUS_CONFIRM: 1,
+	STATUS_CANCEL: 2,
+	STATUS_PAID: 3,
+	STATUS_COMPLETE: 4,
+
+    __connect(callback) {
+    	// Use connect method to connect to the Server
+		MongoClient.connect(url, function(err, db) {
+		  assert.equal(null, err);
+		  console.log("Connected correctly to server");
+
+		  callback(db);
+		}.bind(this));
+    },
+
+    add(userId, goodsId, count, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	var __this = this;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			var order = {
+				userId: userId,
+				goodsId: goodsId,
+				count: count,
+				status: __this.STATUS_CONFIRM,
+				createTime: Date.now(),
+				modifyTime: Date.now()
+			};
+			collection.insertOne(order, {}, function(err, r) {
+			    assert.equal(err, null);
+				var status = false;
+				if (r.insertedCount === 1) {
+					status = true
+				}
+				db.close();
+			    (typeof callback === 'function') && callback(status);
+			});
+    	});
+    },
+
+    pay(orderId, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			var data = {
+				modifyTime: Date.now(),
+				status: __this.STATUS_PAID
+			};
+
+	    	collection.updateOne({_id: ObjectID(orderId)}, {$set: data}, {}, function(err, r) {
+			    assert.equal(err, null);
+				var status = false;
+				if (r.modifiedCount === 1) {
+					status = true
+				}
+				db.close();
+			    (typeof callback === 'function') && callback(status);
+			});
+    	});
+    },
+
+    queryById(orderId, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			collection.findOne({_id: ObjectID(orderId)}, {}, function(err, order) {
+				assert.equal(err, null);
+
+				db.close();
+				(typeof callback === 'function') && callback(order);
+			});    
+    	});
+    },
+
+    queryUserOrder(userId, limit, pageIndex, callback) {
+    	var tableName = this.__TABLE_NAME;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+			limit = (typeof(limit) === 'number' && limit > 0) ? limit : 10;
+			pageIndex = (typeof(pageIndex) === 'number' && pageIndex > 0) ? pageIndex : 1;
+
+			var cursor = collection.find({userId: userId}).sort({modifyTime: -1});
+
+			cursor.count(function(err, count) {
+				assert.equal(err, null);
+
+				if (count > 0) {
+					var pageCount = Math.floor(count / limit) + ((count % limit) ? 1 : 0);
+					if (pageIndex > pageCount) {
+						db.close();
+						(typeof callback === 'function') && callback({items: [], pageCount: pageCount, pageIndex: pageIndex});
+					} else {
+						cursor.skip((pageIndex - 1) * limit).limit(limit).toArray(function(err, items) {
+							assert.equal(err, null);
+
+					      	db.close();
+					      	(typeof callback === 'function') && callback({items: items, pageCount: pageCount, pageIndex: pageIndex});
+					    });
+					}
+				} else {
+					db.close();
+					(typeof callback === 'function') && callback({items: [], pageCount: 0, pageIndex: pageIndex});
+				}
+		    })
+    	});
+    }
+};
+
 module.exports = {
 	Account: Account,
 	Goods: Goods,
-	Attachment: Attachment
+	Attachment: Attachment,
+	Groupon: Groupon,
+	Order: Order
 }

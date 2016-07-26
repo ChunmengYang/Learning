@@ -102,6 +102,7 @@ html, body {
 #add-goods-dialog {
     z-index: 1000;
     display: none;
+    overflow: scroll;
 }
 #add-form {
     position: relative;
@@ -114,16 +115,35 @@ html, body {
     top: 120px;
     padding: 10px 5px;
     border-radius: 5px;
+    display: table;
 }
-#add-form div {
+.add-table-tr {
     margin: 10px 5px;
+    border: 1px solid #6477B7;
+    padding: 5px 10px;
+}
+.add-table-td {
+    display: table-cell;
+    text-align: left;
+    padding: 5px;
+}
+#add-form span {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
 }
 #add-form input, #add-form textarea {
     width: 380px;
     padding: 0;
-    margin: 0;
+    margin: 5px;
+    margin-left: 0; 
+}
+.add-buttons {
+    position: relative;
+    height: 40px;
 }
 #add-form-submit, #add-form-cancel {
+    position: absolute;
     width: 80px;
     padding: 8px 5px;
     background-color: #6477B7;
@@ -132,6 +152,19 @@ html, body {
     color: #fff;
     float: right;
     margin-right: 5px;
+}
+#add-form-cancel {
+    right: 10px;
+}
+#add-form-submit {
+    right: 100px
+}
+.attachment {
+    max-height: 200px;
+    max-width: 400px;
+}
+#main-img, #detail-img {
+    max-width: 400px;
 }
 </style>
 </head>
@@ -146,12 +179,37 @@ html, body {
 <div id="add-goods-dialog" class="fullscreen">
     <div id="add-form">
         <input type="hidden" id="add-form-id" />
-        <div>名称：<input type="text" id="add-form-name" /></div>
-        <div>描述：<textarea id="add-form-desc"></textarea></div>
-        <div>价格：<input type="text" id="add-form-price" /></div>
-        <div><input type="file" id="choose-file"/></div>
-        <div><button id="add-form-submit">确定</button><button id="add-form-cancel">取消</button>
-        <div class="clear"></div>
+        <div class="add-table-tr">
+            <span>名称：</span>
+            <div class="add-table-td"><input type="text" id="add-form-name" /></div>
+        </div>
+        <div class="add-table-tr">
+            <span>描述：</span>
+            <div class="add-table-td"><textarea id="add-form-desc"></textarea></div>
+        </div>
+        <div class="add-table-tr">
+            <span>价格：</span>
+            <div class="add-table-td"><input type="text" id="add-form-price" /></div>
+        </div>
+        <div class="add-table-tr">
+            <span>主图：</span>
+            <div class="add-table-td">
+                <div id="main-img"></div>
+                <input type="file" id="main-img-input" accept="image/jpeg,image/png" />
+            </div>
+        </div>
+        <div class="add-table-tr">
+            <span>细节图：</span>
+            <div class="add-table-td">
+                <div id="detail-img"></div>
+                <input type="file" id="detail-img-input" accept="image/jpeg,image/png" />
+            </div>
+        </div>
+        <div class="add-buttons">
+            <button id="add-form-submit">确定</button>
+            <button id="add-form-cancel">取消</button>
+            <div class="clear">
+        </div>
         </div>
     </div>
 </div>
@@ -177,6 +235,24 @@ var YunTable = React.createClass({
         $("#add-form-desc").val(item.desc);
         $("#add-form-price").val(item.price);
 
+        mainImageId = item.mainImage;
+        if (mainImageId) {
+            var imgurl = "http://localhost/file/download?sessionId=" + sessionId + "&attachmentId=" + mainImageId;
+            $("#main-img").empty();
+            $("#main-img").append('<img class="attachment" src="'+ imgurl +'">');
+        }
+        detailImageIds = item.detailImages;
+        if (!detailImageIds || !(detailImageIds instanceof Array)) {
+            detailImageIds = [];
+        }
+        for (var i in detailImageIds) {
+            var attachmentId = detailImageIds[i];
+            var imgurl = "http://localhost/file/download?sessionId=" + sessionId + "&attachmentId=" + attachmentId;
+            $("#detail-img").append('<img class="attachment" src="'+ imgurl +'">');
+
+        }
+
+
         $("#overflow").show();
         $("#add-goods-dialog").show();
     },
@@ -187,7 +263,12 @@ var YunTable = React.createClass({
             this.props.items.map(function(item, i) {
                 var rows = [];
                 for (var key in item) {
+                    if (key === '_id' || key === 'mainImage' || key === 'detailImages')
+                    continue;
                     var value = item[key];
+                    if (key === 'createTime' || key === 'modifyTime') {
+                        value = new Date(value).toLocaleString();
+                    }
                     rows.push(<div className="yun-td" key={key + i}>{value}</div>);
                 }
                 rows.push(<div className="yun-td" key={"edit" + i} ><button onClick={this.editItem.bind(this, item)}>编辑</button></div>);
@@ -310,6 +391,8 @@ function queryGoods(pageIndex) {
     });
 }
 
+var mainImageId = null;
+var detailImageIds = [];
 var showAddFrom = function() {
     $("#overflow").show();
     $("#add-goods-dialog").show();
@@ -319,6 +402,11 @@ var hideAddFrom = function() {
     $("#add-form-name").val("");
     $("#add-form-desc").val("");
     $("#add-form-price").val("");
+
+    mainImageId = null;
+    detailImageIds = [];
+    $("#main-img").empty();
+    $("#detail-img").empty();
 
     $("#overflow").hide();
     $("#add-goods-dialog").hide();
@@ -337,7 +425,9 @@ $("#add-form-submit").click(function() {
         var goods = {
             name: name,
             desc: desc,
-            price: price
+            price: price,
+            mainImage: mainImageId,
+            detailImages: detailImageIds
         };
 
         var url = "http://localhost/goods/add";
@@ -366,22 +456,53 @@ $("#add-form-submit").click(function() {
     }
 });
 
-$("#choose-file").change(function(e){
+
+var uploadFile = function(file, callback) {
+    var data = new FormData();
+    data.append('file', file);
+    
+    fetch("http://localhost/file/upload?sessionId=" + sessionId, {
+        method: "POST",
+        body: data
+    }).then((response) => response.json())
+    .then((responseData) => {
+        if (responseData && responseData.success) {
+            typeof(callback) === 'function' && callback(responseData.object);
+        }
+    });
+};
+
+$("#main-img-input").change(function(e){
     var files = this.files;
     
     if(files && files.length > 0){
         var file = files[0];
 
-        var data = new FormData();
-        data.append('file', file);
-        data.append('sessionId', sessionId)
+        uploadFile(file, function(attachmengtId) {
+            $("#main-img-input").val("");
 
-        fetch("http://localhost/file/upload", {
-            method: "POST",
-            body: data
-        }).then((response) => response.json())
-        .then((responseData) => {
-            console.log(responseData);
+            var imgurl = "http://localhost/file/download?sessionId=" + sessionId + "&attachmentId=" + attachmengtId;
+            $("#main-img").empty();
+            $("#main-img").append('<img class="attachment" src="'+ imgurl +'">');
+
+             mainImageId = attachmengtId;
+        });
+    }
+});
+
+$("#detail-img-input").change(function(e){
+    var files = this.files;
+    
+    if(files && files.length > 0){
+        var file = files[0];
+
+        uploadFile(file, function(attachmengtId) {
+            $("#detail-img-input").val("");
+
+            var imgurl = "http://localhost/file/download?sessionId=" + sessionId + "&attachmentId=" + attachmengtId;
+            $("#detail-img").append('<img class="attachment" src="'+ imgurl +'">');
+
+            detailImageIds.push(attachmengtId);
         });
     }
 });

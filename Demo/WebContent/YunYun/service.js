@@ -9,6 +9,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var path = require('path');
 var url = require('url');
+var querystring = require('querystring');
 var datastore = require('./datastore');
 var errorcode = require('./errorcode');
 var formidable = require('formidable');
@@ -82,16 +83,6 @@ app.post('/user/login', function(req, res){
 	} else {
 		res.json({success: false, operationTimes: Date.now()});
 	}
-});
-
-app.get('/user/query', function(req, res){
-	var sessionId = req.query.sessionId;
-
-	checkSessionId(sessionId, res, function() {
-		datastore.Account.queryAll(function(accounts) {
-			res.json({success: true, object: accounts, operationTimes: Date.now()});
-		});
-	});
 });
 
 app.post('/goods/add', function(req, res){
@@ -174,23 +165,54 @@ app.post('/goods/query', function(req, res){
 
 
 app.post('/file/upload', function(req, res){
-	var form = new formidable.IncomingForm();
-	form.encoding = 'utf-8';
-	form.uploadDir = 'attachment';
-	form.keepExtensions = true;	
-	form.maxFieldsSize = 4 * 1024 * 1024;
+	var args = url.parse(req.originalUrl).query;
+	var sessionId = querystring.parse(args).sessionId; 
+	
+	checkSessionId(sessionId, res, function() {
+		var form = new formidable.IncomingForm();
+		form.encoding = 'utf-8';
+		form.uploadDir = 'attachment';
+		form.keepExtensions = true;	
+		form.maxFieldsSize = 4 * 1024 * 1024;
 
-	form.parse(req, function(err, fields, files) {
-		if (err) {
-		  res.json({success: false, message: err, operationTimes: Date.now()});
-		  return;
-		}
-		
-		fs.renameSync(files.file.path, form.uploadDir + '/' + files.file.name);
-	    res.json({success: true, operationTimes: Date.now()});
+		form.parse(req, function(err, fields, files) {
+			if (err) {
+			  res.json({success: false, errorCode: errorcode.types['file-upload-error'], operationTimes: Date.now()});
+			  return;
+			}
+
+			var attachment = {
+				name: files.file.name,
+				type: files.file.type,
+				path: files.file.path,
+				size: files.file.size
+			};
+			datastore.Attachment.add(attachment, function(attachmentId) {
+				var status = !!attachmentId;
+				res.json({success: status, object: attachmentId, operationTimes: Date.now()});
+			});
+		});
 	});
 });
 
+app.get('/file/download', function(req, res){
+	var sessionId = req.query.sessionId;
+
+	checkSessionId(sessionId, res, function() {
+		var attachmentId = req.query.attachmentId;
+		if (typeof(attachmentId) === 'string' && attachmentId !== '') {
+			datastore.Attachment.queryById(attachmentId, function(attachment) {
+				if (attachment && attachment.path) {
+					res.sendFile(path.join(__dirname, attachment.path));
+				} else {
+					res.json({success: false, errorCode: errorcode.types['file-not-found'], operationTimes: Date.now()});
+				}
+			});
+		} else {
+			res.json({success: false, errorCode: errorcode.types['params-undefined'], operationTimes: Date.now()});
+		}
+	});
+});
 
 app.listen(80);
 // service end
