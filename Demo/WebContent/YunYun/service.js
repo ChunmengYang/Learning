@@ -85,6 +85,23 @@ app.post('/user/login', function(req, res){
 	}
 });
 
+app.post('/user/update', function(req, res){
+	var sessionId = req.body.sessionId;
+	checkSessionId(sessionId, res, function() {
+		var user = req.body.user;
+		if (typeof(user) === 'string') {
+			user = tryParseJSON(user);
+		}
+		if (typeof(user) === 'object' && user._id) {
+			datastore.Account.updateUser(user, function(status) {
+				res.json({success: status, operationTimes: Date.now()});
+			});
+		} else {
+			res.json({success: false, errorCode: errorcode.types['params-undefined'], operationTimes: Date.now()});
+		}
+	});
+});
+
 app.post('/goods/add', function(req, res){
 	var sessionId = req.body.sessionId;
 	checkSessionId(sessionId, res, function() {
@@ -211,6 +228,77 @@ app.get('/file/download', function(req, res){
 		} else {
 			res.json({success: false, errorCode: errorcode.types['params-undefined'], operationTimes: Date.now()});
 		}
+	});
+});
+
+
+
+app.post('/order/add', function(req, res){
+	var sessionId = req.body.sessionId;
+	checkSessionId(sessionId, res, function() {
+		datastore.Account.queryUserBySessionId(sessionId, function(user) {
+			if (user && user._id) {
+				var userId = user._id;
+				var goodsId = req.body.goodsId; 
+				var count = req.body.count;
+				if (typeof(count) === 'string') {
+					count = parseInt(count);
+				}
+				if (typeof(goodsId) === 'string' && goodsId !== '' && count > 0) {
+					datastore.Order.add(userId, goodsId, count, function(status) {
+						res.json({success: status, operationTimes: Date.now()});
+					});
+				} else {
+					res.json({success: false, errorCode: errorcode.types['params-undefined'], operationTimes: Date.now()});
+				}
+			} else {
+				res.json({success: false, errorCode: errorcode.types['user-not-found'], operationTimes: Date.now()});
+			}
+		});
+	});
+});
+
+app.post('/order/queryById', function(req, res){
+	var sessionId = req.body.sessionId;
+	checkSessionId(sessionId, res, function() {
+		var orderId = req.body.orderId;
+
+		if (typeof(orderId) === 'string' && orderId !== '') {
+			datastore.Order.queryById(orderId, function(order) {
+				var status = !!order;
+				res.json({success: status, object: order, operationTimes: Date.now()});
+			});
+		} else {
+			res.json({success: false, errorCode: errorcode.types['params-undefined'], operationTimes: Date.now()});
+		}
+	});
+});
+
+app.post('/order/queryMine', function(req, res){
+	var sessionId = req.body.sessionId;
+	checkSessionId(sessionId, res, function() {
+		datastore.Account.queryUserBySessionId(sessionId, function(user) {
+			if (user && user._id) {
+				var userId = user._id;
+				
+				var limit = req.body.limit;
+				if (typeof(limit) === 'string') {
+					limit = parseInt(limit);
+				}
+				var pageIndex = req.body.pageIndex;
+				if (typeof(pageIndex) === 'string') {
+					pageIndex = parseInt(pageIndex);
+				}
+
+				datastore.Order.queryUserOrder(userId, limit, pageIndex, function(result) {
+					var status = !!result;
+
+					res.json({success: status, object: result, operationTimes: Date.now()});
+				});
+			} else {
+				res.json({success: false, errorCode: errorcode.types['user-not-found'], operationTimes: Date.now()});
+			}
+		});
 	});
 });
 

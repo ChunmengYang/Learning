@@ -7,6 +7,7 @@ var url = 'mongodb://localhost:27017/yunyun';
 var Account = {
 	__TABLE_NAME_ACCOUNT: 'Account',
 	__TABLE_NAME_SESSION: 'Session',
+	__TABLE_NAME_USER: 'User',
 
     __connect(callback) {
     	// Use connect method to connect to the Server
@@ -19,9 +20,12 @@ var Account = {
     },
 
     register(account, password, callback) {
-    	var tableName = this.__TABLE_NAME_ACCOUNT;
+    	var tnAccount = this.__TABLE_NAME_ACCOUNT;
+    	var tnUser = this.__TABLE_NAME_USER;
+    	var _this = this;
+
     	this.__connect(function(db) {
-			var collection = db.collection(tableName);
+			var collection = db.collection(tnAccount);
 
 			collection.findOne({account: account}, {}, function(err, user) {
 				assert.equal(err, null);
@@ -32,10 +36,30 @@ var Account = {
 				} else {
 					collection.insertOne({account: account, password: password, createTime: Date.now(), modifyTime: Date.now()}, {}, function(err, r) {
 					    assert.equal(err, null);
-						assert.equal(1, r.insertedCount);
 
-						db.close();
-					    (typeof callback === 'function') && callback(true);
+						var status = false;
+						if (r.insertedCount === 1) {
+							status = true
+						}
+						var accountId = r.insertedId;
+						
+						if (status && accountId) {
+							collection = db.collection(tnUser);
+							collection.insertOne({accountId: accountId, createTime: Date.now(), modifyTime: Date.now()}, {}, function(err, r) {
+							    assert.equal(err, null);
+
+								var status = false;
+								if (r.insertedCount === 1) {
+									status = true
+								}
+								db.close();
+
+							    (typeof callback === 'function') && callback(status);
+							});
+						} else {
+							db.close();
+							(typeof callback === 'function') && callback(false);
+						}
 					});
 				}
 			});   
@@ -84,10 +108,18 @@ var Account = {
 					
 					collection.insertOne({accountId: accountId, sessionId: sessionId, sessionTime: dateNow, createTime: dateNow, modifyTime: dateNow}, {}, function(err, r) {
 					    assert.equal(err, null);
-						assert.equal(1, r.insertedCount);
-
+						
+						var status = false;
+						if (r.insertedCount === 1) {
+							status = true
+						}
 						db.close();
-					    (typeof callback === 'function') && callback(sessionId);
+						if (status) {
+							(typeof callback === 'function') && callback(sessionId);
+						} else {
+							(typeof callback === 'function') && callback();
+						}
+					    
 					});
 				}
 			});  
@@ -102,7 +134,6 @@ var Account = {
 			var dateNow = Date.now();
 			collection.findAndModify({sessionId: sessionId}, [], {$set: {sessionTime: dateNow, modifyTime: dateNow}}, function(err, result) {
 				assert.equal(err, null);
-				console.log(result);
 
 				var status = result.ok;
 				sessionId = result.value ? result.value.sessionId : null;
@@ -122,13 +153,83 @@ var Account = {
     	this.__connect(function(db) {
 			var collection = db.collection(tableName);
 
-			var millisecond = Date.now();//Date.now() - 86400000;
+			var millisecond = Date.now() - 86400000;
 	    	collection.findAndRemove({sessionTime: {$lt: millisecond}}, [], {}, function(err, result) {
 				assert.equal(err, null);
 
 				db.close();
 				(typeof callback === 'function') && callback(result);
 			});    
+    	});
+    },
+
+    queryUserBySessionId(sessionId, callback) {
+    	var tnUser = this.__TABLE_NAME_USER;
+    	var tnSession = this.__TABLE_NAME_SESSION;
+    	var _this = this;
+    	this.__connect(function(db) {
+			var collection = db.collection(tnSession);
+
+			collection.findOne({sessionId: sessionId}, {}, function(err, session) {
+				assert.equal(err, null);
+
+				if (session && session.accountId) {
+					var accountId = session.accountId;
+
+					collection = db.collection(tnUser);
+					collection.findOne({accountId: accountId}, {}, function(err, user) {
+						assert.equal(err, null);
+
+						if (user && user._id) {
+							db.close();
+							delete user.accountId;
+							(typeof callback === 'function') && callback(user);
+						} else {
+							collection.insertOne({accountId: accountId, createTime: Date.now(), modifyTime: Date.now()}, {}, function(err, r) {
+							    assert.equal(err, null);
+
+								var user = null;
+								if (r.insertedCount === 1 && r.ops.length > 0) {
+									user = r.ops[0];
+								}
+								db.close();
+								delete user.accountId;
+							    (typeof callback === 'function') && callback(user);
+							});
+						}
+					});  
+				} else {
+					db.close();
+					(typeof callback === 'function') && callback();
+				}
+			});  
+    	});
+    },
+
+    updateUser(user, callback) {
+		var tableName = this.__TABLE_NAME_USER;
+    	this.__connect(function(db) {
+			var collection = db.collection(tableName);
+
+			var userId = user._id;
+			var data = {
+				modifyTime: Date.now()
+			};
+			for (var key in user) {
+				if (key !== '_id' || key !== 'accountId') {
+					data[key] = user[key];
+				}
+			}
+
+			collection.updateOne({_id: ObjectID(userId)}, {$set: data}, {}, function(err, r) {
+			    assert.equal(err, null);
+				var status = false;
+				if (r.modifiedCount === 1) {
+					status = true
+				}
+				db.close();
+			    (typeof callback === 'function') && callback(status);
+			});
     	});
     }
 };
